@@ -4,14 +4,8 @@ module Main where
 import Network.Wai
 import Network.HTTP.Types (status200, hContentType)
 import Network.Wai.Handler.Warp (run)
-
-application :: Application
-application _ respond = respond $
-  responseLBS status200
-              [(hContentType, "text/plain")]
-              "Hello, world"
+import Web.Scotty (scotty, get, text)
 
 main :: IO ()
-main = do
-  putStrLn "Serving... (ctrl+c to break)"
-  run 8000 application
+main = scotty 8000 $ do
+    get "/" $ text "Hello World!"
