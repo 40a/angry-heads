@@ -12,10 +12,19 @@ category:            Web
 build-type:          Simple
 cabal-version:       >=1.10
 
-executable angry-heads
+executable build-it
+  hs-source-dirs:      scripts
+  main-is:             BuildIt.hs
+  default-language:    Haskell2010
+  ghc-options:         -Werror -Wall
+  build-depends:       base >= 4.7 && < 5,
+                       turtle
+
+executable server
   hs-source-dirs:      src
   main-is:             Main.hs
   default-language:    Haskell2010
+  ghc-options:         -Werror -Wall
   build-depends:       base >= 4.7 && < 5,
                        http-types, wai, warp,
                        scotty
