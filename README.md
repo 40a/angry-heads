@@ -1,5 +1,7 @@
 # Разгневанные бошки
 
+[![Join the chat at https://gitter.im/progmsk/angry-heads](https://badges.gitter.im/progmsk/angry-heads.svg)](https://gitter.im/progmsk/angry-heads?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 ## Назначение
 
 Проект призван помочь толковым соискателям выбирать хорошие места работы с помощью *рейтинга работодателей*.
