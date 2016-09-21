@@ -13,5 +13,5 @@ application _ respond = respond $
 
 main :: IO ()
 main = do
-  putStrLn "Serving..."
+  putStrLn "Serving... (ctrl+c to break)"
   run 8000 application
