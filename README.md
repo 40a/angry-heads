@@ -27,7 +27,9 @@
 
 4. В папке `angry-heads` выполняем команды:
 
-    stack setup
-    stack build
-    stack exec angry-heads
+```    
+stack setup
+stack build
+stack exec angry-heads
+```
 
