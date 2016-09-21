@@ -27,4 +27,6 @@ executable server
   ghc-options:         -Werror -Wall
   build-depends:       base >= 4.7 && < 5,
                        http-types, wai, warp,
+                       wai-extra,
+                       wai-middleware-static,
                        scotty

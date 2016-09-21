@@ -22,7 +22,7 @@ buildClient :: IO ExitCode
 buildClient = do
     echo "Building: client..................."
     within "client"
-        $ shell "elm-make src/Main.elm --output ../static/app.js" empty
+        $ shell "elm-make src/Main.elm --output ../static/js/app.js" empty
 
 
 buildServer :: IO ExitCode

@@ -21,4 +21,4 @@ cabal.project.local
 elm-stuff/
 client/index.html
 client/elm.js
-static/app.js
+static/js/app.js
