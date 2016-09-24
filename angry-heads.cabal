@@ -25,8 +25,10 @@ executable server
   main-is:             Main.hs
   default-language:    Haskell2010
   ghc-options:         -Werror -Wall
+  other-modules:       Options, Static
   build-depends:       base >= 4.7 && < 5,
                        http-types, wai, warp,
                        wai-extra,
                        wai-middleware-static,
-                       scotty
+                       scotty,
+                       turtle

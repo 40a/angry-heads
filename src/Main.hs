@@ -1,16 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 module Main where
 
-import Data.List (isPrefixOf)
-import Network.HTTP.Types.Header
 import Network.Wai.Handler.Warp (run)
 import Network.Wai.Middleware.RequestLogger (logStdout)
-import Network.Wai.Middleware.Static (
-    CachingStrategy (CustomCaching), FileMeta (fm_fileName),
-    addBase, hasPrefix, hasSuffix, initCaching, only,
-    staticPolicy', (<|>), (>->)
-    )
 import Web.Scotty (ScottyM, scottyApp, get, text)
+
+import Options
+import Static
 
 
 app :: ScottyM ()
@@ -20,27 +17,11 @@ app =
 
 main :: IO ()
 main = do
-    cache <- initCaching . CustomCaching $ noCacheLocalJS  -- TODO: should be configurable
+    Options {..} <- getOptions
     application <- scottyApp app
-    putStrLn "Started! (hit Ctrl+C to stop)"
-    run 8000
+    withStatic <- makeWithStatic dontCache
+    putStrLn $ "Server started! (port: " ++ show port ++ ", Ctrl+C to stop)"
+    run port
         $ logStdout
-        $ staticPolicy' cache policy
+        $ withStatic
         $ application
-  where
-    policy =
-        ( only [("", "index.html")]
-          <|> hasPrefix "css/"
-          <|> hasPrefix "js/"
-          <|> hasSuffix ".html"
-        ) >-> addBase "static"
-
-    -- this rule disables an any possible caching for local .js-files
-    -- (for the developer's needs)
-    noCacheLocalJS fm
-        | "static/js/" `isPrefixOf` fm_fileName fm =
-            [ (hPragma, "no-cache")
-            , (hExpires, "0")
-            , (hCacheControl, "no-cache, no-store, must-revalidate")
-            ]
-        | otherwise = []
