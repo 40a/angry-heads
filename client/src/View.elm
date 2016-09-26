@@ -62,10 +62,6 @@ page m =
         ]
 
 
-
--- Helpers
-
-
 infixr 9 <:
 (<:) : (List a -> b) -> a -> b
 (<:) n1 n2 =
