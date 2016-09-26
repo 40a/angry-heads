@@ -1,8 +1,15 @@
 module Model exposing (..)
 
-type alias Model = String
+type alias Model =
+  { menuIsVisible : Bool
+  , message : String
+  }
 
-type alias Msg = ()
+type Msg =
+  ToggleNav
 
 initialState : Model
-initialState = "Hello world!"
+initialState =
+  { menuIsVisible = False
+  , message = "Hello world!"
+  }

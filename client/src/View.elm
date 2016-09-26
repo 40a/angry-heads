@@ -2,6 +2,7 @@ module View exposing (view)
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
+import Html.Events exposing (onClick)
 
 import Model exposing (..)
 
@@ -9,21 +10,19 @@ import Model exposing (..)
 view : Model -> Html Msg
 view m =
   div []
-    [ nav
+    [ nav m
     , page m ]
 
 
-nav : Html a
-nav =
+nav : Model -> Html Msg
+nav m =
   node "nav" [ class "navbar navbar-inverse navbar-fixed-top" ]
     <: container
        [ div [ class "navbar-header" ]
            [ node "button" [ type' "button"
                            , class "navbar-toggle collapsed"
-                           , attribute "data-toggle" "collapse"
-                           , attribute "data-target" "#navbar"
-                           , attribute "aria-expanded" "false"
-                           , attribute "aria-controls" "navbar" ]
+                           , onClick ToggleNav
+                           ]
                [ span [ class "sr-only" ] [ text "Toggle navigation" ]
                -- "hamburger" menu
                , span [ class "icon-bar"] []
@@ -33,7 +32,11 @@ nav =
            , a [ class "navbar-brand", href "#" ] <: text "Angry Heads"
            ]
        , div [ id "navbar"
-             , class "collapse navbar-collapse" ]
+             , classList [ ("navbar-collapse", True)
+                         , ("collapse", True)
+                         , ("in", m.menuIsVisible)
+                         ]
+             ]
            <: ul [ class "nav navbar-nav" ]
               [ li [ class "active" ] <: a [ href "#" ] <: text "Home"
               , li [] <: a [ href "#about" ] <: text "About"
@@ -42,11 +45,11 @@ nav =
        ]
 
 
-page : Model -> Html Msg
+page : Model -> Html a
 page m =
   container
     <: h1 []
-       <: text m
+       <: text m.message
 
 -- Helpers
 
