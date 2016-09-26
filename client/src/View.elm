@@ -44,10 +44,10 @@ nav =
 
 page : Model -> Html Msg
 page m =
-  container
-    <: h1 []
-       <: text m
-
+  container [
+    h1 [] [ text m ],
+    a [ href "https://hh.ru/oauth/authorize?response_type=code&client_id=UA6JURGKSH4MMV6H2VQ2SQ3NJUGOAQ136SPL8J5R9V2LDJR7UIAUJN65F73CIFJ8",  title "Аутентификация через Head Hunter" ] [ img [ src "/img/hh-black.png" ] [] ]
+  ]
 -- Helpers
 
 infixr 9 <:
