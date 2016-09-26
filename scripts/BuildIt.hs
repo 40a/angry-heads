@@ -3,43 +3,102 @@
 
 -- | Cross-platform Make replacement :)
 
+import Control.Concurrent (threadDelay)
+import Data.List (isSuffixOf)
+import Prelude hiding (FilePath)
+import System.FSNotify (Event(Modified), withManager, watchTree)
 import Turtle hiding (within)
 
 
-data Target = Client | Server | All
+type Action = IO ExitCode
+
+data BuildMode
+    = BuildOnce
+    | AutoRebuild
+
+data Command
+    = Client BuildMode
+    | Server
+    | All
 
 
-within :: Turtle.FilePath -> IO a -> IO a
+main :: IO ()
+main =
+    getCommand >>= execute >>= exit
+  where
+    execute = \case
+        Client BuildOnce ->
+            buildClient
+
+        Client AutoRebuild ->
+            autoRebuildClient
+
+        Server ->
+            buildServer
+
+        All ->
+            buildClient .&&. buildServer
+
+
+buildClient :: Action
+buildClient = do
+    echo "Building: client..................."
+    within "client"
+        $ proc "elm-make"
+               [ "src/Main.elm"
+               , "--warn", "--yes"
+               , "--output", "../static/js/app.js"
+               ] empty
+
+
+autoRebuildClient :: Action
+autoRebuildClient = return ExitSuccess <* do
+    echo "Client auto-rebuild: watching for changes (hit Ctrl-C to stop)..."
+
+    withManager $ \mgr -> do
+        void $ watchTree
+            mgr
+            "./client/src"
+            (\case
+              Modified path _ -> ".elm" `isSuffixOf` path
+              _ -> False
+            )
+            (const $ void buildClient)
+        forever . threadDelay $ 1000000  -- 1sec
+
+
+buildServer :: Action
+buildServer = do
+    echo "Building: server..................."
+    proc "stack" [ "build"
+                 , "angry-heads:exe:server"
+                 ] empty
+
+-- Options
+
+getCommand :: IO Command
+getCommand =
+    options "BuildIt, an awesome build tool!"
+    ( subcommand "client" "Build a client"
+      ( Client . toBuildMode
+        <$> switch "watch" 'w' "Stay watching for changes (auto rebuild)"
+      )
+      <|> subcommand "server" "Build a server" (pure Server)
+      <|> pure All
+    )
+  where
+    toBuildMode flag
+        | flag = AutoRebuild
+        | otherwise = BuildOnce
+
+
+-- Helpers
+
+-- | Executes the body within targetDir
+within :: FilePath -> IO a -> IO a
 within targetDir body = do
     oldDir <- pwd
     cd targetDir
     result <- body
     cd oldDir
     return result
-
-
-buildClient :: IO ExitCode
-buildClient = do
-    echo "Building: client..................."
-    within "client"
-        $ shell "elm-make src/Main.elm --yes --output ../static/js/app.js" empty
-
-
-buildServer :: IO ExitCode
-buildServer = do
-    echo "Building: server..................."
-    shell "stack build angry-heads:exe:server" empty
-
-
-main :: IO ()
-main =
-    options "BuildIt, an awesome build tool!"
-    ( subcommand "client" "Build a client" (pure Client)
-      <|> subcommand "server" "Build a server" (pure Server)
-      <|> pure All
-    )
-    >>= \case
-        Client -> buildClient
-        Server -> buildServer
-        _ -> buildClient .&&. buildServer
-    >>= exit

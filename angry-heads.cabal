@@ -18,7 +18,8 @@ executable build-it
   default-language:    Haskell2010
   ghc-options:         -Werror -Wall
   build-depends:       base >= 4.7 && < 5,
-                       turtle
+                       turtle,
+                       fsnotify
 
 executable server
   hs-source-dirs:      src
