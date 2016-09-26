@@ -22,4 +22,5 @@ makeWithStatic dontCache
           <|> hasPrefix "css/"
           <|> hasPrefix "js/"
           <|> hasSuffix ".html"
+          <|> hasPrefix "img/"
         ) >-> addBase "static"

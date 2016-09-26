@@ -18,6 +18,8 @@ cabal.sandbox.config
 .stack-work/
 cabal.project.local
 
+*.orig
+
 elm-stuff/
 client/index.html
 client/elm.js
