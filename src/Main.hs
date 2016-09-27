@@ -4,16 +4,19 @@ module Main where
 
 import Network.Wai.Handler.Warp (run)
 import Network.Wai.Middleware.RequestLogger (logStdout)
-import Web.Scotty (ScottyM, scottyApp, get, text)
+import Web.Scotty (ScottyM, scottyApp, get, text, param)
 
 import Options
 import Static
 
 
 app :: ScottyM ()
-app =
-    get "/hello" $ text "Hello World!!"
+app = do
+    get "/hello" $ text "Hello, world!"
 
+    get "/oauth/hh" $ do
+        code <- param "code"
+        text code
 
 main :: IO ()
 main = do
