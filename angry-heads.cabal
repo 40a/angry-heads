@@ -32,4 +32,6 @@ executable server
                        wai-extra,
                        wai-middleware-static,
                        scotty,
-                       turtle
+                       turtle,
+                       http-client, http-conduit, http-client-tls,
+                       text, aeson, bytestring, mtl
