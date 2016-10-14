@@ -16,7 +16,7 @@ import Web.Scotty (ScottyM, scottyApp, get, text, param)
 
 import Options
 import Static
-
+import Jsons (AccessTokenResponse, access_token)
 
 app :: Env -> ScottyM ()
 app env = do
@@ -33,8 +33,8 @@ app env = do
                 , ("code", BS8.pack code)
                 ]
                 $ parseRequest_ "POST https://hh.ru/oauth/token"
-        (response :: Response Value) <- httpJSON request
-        text . TL.pack $ show (getResponseStatus response) ++ code
+        (response :: AccessTokenResponse) <- httpJSON request
+        text . TL.pack $ show (access_token response) ++ " " ++ code
   where
     fromText = BS8.pack . T.unpack
 
