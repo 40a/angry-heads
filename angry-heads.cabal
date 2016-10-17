@@ -26,7 +26,7 @@ executable server
   main-is:             Main.hs
   default-language:    Haskell2010
   ghc-options:         -Werror -Wall
-  other-modules:       Options, Static
+  other-modules:       Options, Static, Jsons
   build-depends:       base >= 4.7 && < 5,
                        http-types, wai, warp,
                        wai-extra,

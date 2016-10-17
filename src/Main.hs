@@ -4,14 +4,14 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Main where
 
-import Data.Aeson (Value)
+import Data.Aeson ()
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.ByteString.Char8 as BS8
 import Network.Wai.Handler.Warp (run)
 import Network.Wai.Middleware.RequestLogger (logStdout)
 import Network.HTTP.Conduit
-import Network.HTTP.Simple
+import Network.HTTP.Simple (httpJSON, getResponseBody)
 import Web.Scotty (ScottyM, scottyApp, get, text, param)
 
 import Options
@@ -33,8 +33,8 @@ app env = do
                 , ("code", BS8.pack code)
                 ]
                 $ parseRequest_ "POST https://hh.ru/oauth/token"
-        (response :: AccessTokenResponse) <- httpJSON request
-        text . TL.pack $ show (access_token response) ++ " " ++ code
+        (body :: Response AccessTokenResponse) <- httpJSON request
+        text . TL.pack $ show (access_token $ getResponseBody body) ++ " " ++ code
   where
     fromText = BS8.pack . T.unpack
 
