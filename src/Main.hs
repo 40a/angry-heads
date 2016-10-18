@@ -24,11 +24,6 @@ import Static
 import Jsons (HHResult(..))
 import qualified Jsons
 
-setCookie :: [(T.Text, T.Text)] -> ActionM ()
-setCookie =
-    setHeader "Set-Cookie" . TE.decodeUtf8 .
-    B.toLazyByteString . renderCookiesText
-    
 app :: Env -> ScottyM ()
 app env = do
     get "/hello" $ text "Hello, world!"
@@ -46,16 +41,12 @@ app env = do
         response <- httpLBS request
         case decode . getResponseBody $ response of
             Just (HHSuccess t) -> do
-                setCookie [ ("access_token", Jsons.access_token t)
-                          , ("path", "/")
-                          ]
+                setCookie . accessTokenCookie $ Jsons.access_token t
                 redirect "/"
             Just (HHError e) -> do
                 status unauthorized401
-                setHeader "Lazy-Error-Message" (TL.pack . T.unpack $ (Jsons.error e))
---                text
---                    $ TL.pack . T.unpack
---                    $ Jsons.error e <> ": " <> Jsons.error_description e
+                setHeader "Lazy-Error-Message" .
+                    TL.pack . T.unpack $ Jsons.error e
             Nothing -> do
                 status badRequest400
                 setHeader "Lazy-Error-Message" "Нераспознанная ошибка"
@@ -80,3 +71,15 @@ main = do
                 $ application
         _ ->
            putStrLn "Environment wasn't configured properly!"
+
+setCookie :: SetCookie -> ActionM ()
+setCookie =
+    setHeader "Set-Cookie" . TE.decodeUtf8 .
+    B.toLazyByteString . renderSetCookie
+
+accessTokenCookie :: T.Text -> SetCookie
+accessTokenCookie value =
+    def { setCookieName = "access_token"
+        , setCookieValue = BS8.pack . T.unpack $ value
+        , setCookiePath = Just "/"
+        }
