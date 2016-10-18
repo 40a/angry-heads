@@ -5,22 +5,22 @@ import Data.Aeson
 import Data.Text
 import GHC.Generics
 
-data AccessTokenResponse = AccessTokenResponse { access_token :: Text
-                                               , token_type :: Text
-                                               , expires_in :: Int                                               
-                                               , refresh_token :: Text
-                                               } deriving (Generic, Show)
+data AccessToken = AccessToken { access_token :: Text
+                               , token_type :: Text
+                               , expires_in :: Int                                               
+                               , refresh_token :: Text
+                               } deriving (Generic, Show)
 
-instance ToJSON AccessTokenResponse where
+instance ToJSON AccessToken where
     toEncoding = genericToEncoding defaultOptions
 
-instance FromJSON AccessTokenResponse where { }
+instance FromJSON AccessToken where { }
 
-data ErrorResponse = ErrorResponse { error :: Text
-                                   , error_description :: Text
-                                   } deriving (Generic, Show)
+data Error = Error { error :: Text
+                   , error_description :: Text
+                   } deriving (Generic, Show)
 
-instance ToJSON ErrorResponse where
+instance ToJSON Error where
     toEncoding = genericToEncoding defaultOptions
 
-instance FromJSON ErrorResponse where { }
+instance FromJSON Error where { }
