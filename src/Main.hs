@@ -16,7 +16,7 @@ import Web.Scotty (ScottyM, scottyApp, get, text, param)
 
 import Options
 import Static
-import Jsons (AccessToken, access_token, Error, error, error_description)
+import Jsons (access_token, error, error_description)
 
 app :: Env -> ScottyM ()
 app env = do
@@ -33,8 +33,8 @@ app env = do
                     ]
                     $ parseRequest_ "POST https://hh.ru/oauth/token"
         response <- httpLBS request
-        case (decode (getResponseBody response) :: Maybe AccessToken) of
-          Nothing    -> case (decode (getResponseBody response) :: Maybe Error) of
+        case (decode . getResponseBody) response of
+          Nothing    -> case (decode . getResponseBody) response of
                           Nothing    -> text "Нераспознаная ошибка"
                           Just value -> text . TL.pack $ (show (Jsons.error $ value) ++ " " ++ show (error_description $ value))
           Just value -> text . TL.pack $ show (access_token $ value) ++ " " ++ code
