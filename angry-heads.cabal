@@ -31,7 +31,7 @@ executable server
                        http-types, wai, warp,
                        wai-extra,
                        wai-middleware-static,
-                       scotty,
+                       scotty, cookie, blaze-builder,
                        turtle,
                        http-client, http-conduit, http-client-tls,
                        text, aeson, bytestring, mtl

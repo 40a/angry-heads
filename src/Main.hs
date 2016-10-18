@@ -7,16 +7,29 @@ module Main where
 import Data.Aeson (decode)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.Encoding as TE
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
+import qualified Blaze.ByteString.Builder as B
 import Network.Wai.Handler.Warp (run)
 import Network.Wai.Middleware.RequestLogger (logStdout)
 import Network.HTTP.Conduit
 import Network.HTTP.Simple (httpLBS, getResponseBody)
-import Web.Scotty (ScottyM, scottyApp, get, text, param)
+import Web.Cookie
+import Web.Scotty (ScottyM, scottyApp, get, text, param, setHeader, redirect, ActionM)
 
 import Options
 import Static
 import Jsons (access_token, error, error_description)
+
+makeCookie :: BS.ByteString -> BS.ByteString -> SetCookie
+makeCookie n v = def { setCookieName = n, setCookieValue = v }
+
+renderSetCookie' :: SetCookie -> TL.Text
+renderSetCookie' = TE.decodeUtf8 . B.toLazyByteString . renderSetCookie
+
+setCookie :: BS.ByteString -> BS.ByteString -> ActionM ()
+setCookie n v = setHeader "Set-Cookie" (renderSetCookie' (makeCookie n v))
 
 app :: Env -> ScottyM ()
 app env = do
@@ -37,7 +50,8 @@ app env = do
           Nothing    -> case (decode . getResponseBody) response of
                           Nothing    -> text "Нераспознаная ошибка"
                           Just value -> text . TL.pack $ (show (Jsons.error $ value) ++ " " ++ show (error_description $ value))
-          Just value -> text . TL.pack $ show (access_token $ value) ++ " " ++ code
+          Just value -> do setCookie (BS8.pack "access_token") (BS8.pack (show (access_token $ value)))
+                           redirect "/"
     where
         fromText = BS8.pack . T.unpack
 
