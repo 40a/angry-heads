@@ -4,6 +4,7 @@ module Jsons where
 import Data.Aeson
 import Data.Text
 import GHC.Generics
+import Control.Applicative ((<|>))
 
 data AccessToken = AccessToken { access_token :: Text
                                , token_type :: Text
@@ -24,3 +25,9 @@ instance ToJSON Error where
     toEncoding = genericToEncoding defaultOptions
 
 instance FromJSON Error where { }
+
+instance FromJSON HHResult where
+    parseJSON x =
+        HHSuccess <$> parseJSON x
+        <|>
+        HHError <$> parseJSON x

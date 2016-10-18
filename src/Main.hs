@@ -5,6 +5,7 @@
 module Main where
 
 import Data.Aeson (decode)
+import Data.Monoid ((<>))
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TE
@@ -13,14 +14,17 @@ import qualified Data.ByteString.Char8 as BS8
 import qualified Blaze.ByteString.Builder as B
 import Network.Wai.Handler.Warp (run)
 import Network.Wai.Middleware.RequestLogger (logStdout)
+import Network.HTTP.Types (unauthorized401, badRequest400)
 import Network.HTTP.Conduit
 import Network.HTTP.Simple (httpLBS, getResponseBody)
 import Web.Cookie
-import Web.Scotty (ScottyM, scottyApp, get, text, param, setHeader, redirect, ActionM)
+import Web.Scotty (ScottyM, scottyApp, get, text, param,
+                   setHeader, redirect, ActionM)
 
 import Options
 import Static
-import Jsons (access_token, error, error_description)
+import Jsons (HHResult(..))
+import qualified Jsons
 
 makeCookie :: BS.ByteString -> BS.ByteString -> SetCookie
 makeCookie n v = def { setCookieName = n, setCookieValue = v }
@@ -46,12 +50,19 @@ app env = do
                     ]
                     $ parseRequest_ "POST https://hh.ru/oauth/token"
         response <- httpLBS request
-        case (decode . getResponseBody) response of
-          Nothing    -> case (decode . getResponseBody) response of
-                          Nothing    -> text "Нераспознаная ошибка"
-                          Just value -> text . TL.pack $ (show (Jsons.error $ value) ++ " " ++ show (error_description $ value))
-          Just value -> do setCookie (BS8.pack "access_token") (BS8.pack (show (access_token $ value)))
-                           redirect "/"
+        case decode . getResponseBody $ response of
+            Just (HHSuccess t) -> do
+                setCookie "access_token"
+                    $ BS8.pack . T.unpack $ Jsons.access_token t
+                redirect "/"
+            Just (HHError e) -> do
+                status unauthorized401
+                text
+                    $ TL.pack . T.unpack
+                    $ Jsons.error e <> ": " <> Jsons.error_description e
+            Nothing -> do
+                status badRequest400
+                text "Нераспознаная ошибка"
     where
         fromText = BS8.pack . T.unpack
 
