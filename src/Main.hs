@@ -19,7 +19,7 @@ import Network.HTTP.Conduit
 import Network.HTTP.Simple (httpLBS, getResponseBody)
 import Web.Cookie
 import Web.Scotty (ScottyM, scottyApp, get, text, param,
-                   setHeader, redirect, ActionM)
+                   setHeader, redirect, ActionM, status)
 
 import Options
 import Static
@@ -52,17 +52,17 @@ app env = do
         response <- httpLBS request
         case decode . getResponseBody $ response of
             Just (HHSuccess t) -> do
-                setCookie "access_token"
-                    $ BS8.pack . T.unpack $ Jsons.access_token t
+                setCookie "access_token" $ fromText $ Jsons.access_token t <> "; path=/"
                 redirect "/"
             Just (HHError e) -> do
                 status unauthorized401
-                text
-                    $ TL.pack . T.unpack
-                    $ Jsons.error e <> ": " <> Jsons.error_description e
+                setHeader "Lazy-Error-Message" (TL.pack . T.unpack $ (Jsons.error e))
+--                text
+--                    $ TL.pack . T.unpack
+--                    $ Jsons.error e <> ": " <> Jsons.error_description e
             Nothing -> do
                 status badRequest400
-                text "Нераспознаная ошибка"
+                setHeader "Lazy-Error-Message" "Нераспознанная ошибка"
     where
         fromText = BS8.pack . T.unpack
 
