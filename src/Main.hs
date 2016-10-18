@@ -5,11 +5,9 @@
 module Main where
 
 import Data.Aeson (decode)
-import Data.Monoid ((<>))
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TE
-import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 import qualified Blaze.ByteString.Builder as B
 import Network.Wai.Handler.Warp (run)
@@ -26,15 +24,11 @@ import Static
 import Jsons (HHResult(..))
 import qualified Jsons
 
-makeCookie :: BS.ByteString -> BS.ByteString -> SetCookie
-makeCookie n v = def { setCookieName = n, setCookieValue = v }
-
-renderSetCookie' :: SetCookie -> TL.Text
-renderSetCookie' = TE.decodeUtf8 . B.toLazyByteString . renderSetCookie
-
-setCookie :: BS.ByteString -> BS.ByteString -> ActionM ()
-setCookie n v = setHeader "Set-Cookie" (renderSetCookie' (makeCookie n v))
-
+setCookie :: [(T.Text, T.Text)] -> ActionM ()
+setCookie =
+    setHeader "Set-Cookie" . TE.decodeUtf8 .
+    B.toLazyByteString . renderCookiesText
+    
 app :: Env -> ScottyM ()
 app env = do
     get "/hello" $ text "Hello, world!"
@@ -52,7 +46,9 @@ app env = do
         response <- httpLBS request
         case decode . getResponseBody $ response of
             Just (HHSuccess t) -> do
-                setCookie "access_token" $ fromText $ Jsons.access_token t <> "; path=/"
+                setCookie [ ("access_token", Jsons.access_token t)
+                          , ("path", "/")
+                          ]
                 redirect "/"
             Just (HHError e) -> do
                 status unauthorized401
