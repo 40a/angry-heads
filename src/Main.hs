@@ -1,6 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module Main where
 
@@ -13,7 +12,7 @@ import qualified Blaze.ByteString.Builder as B
 import Network.Wai.Handler.Warp (run)
 import Network.Wai.Middleware.RequestLogger (logStdout)
 import Network.HTTP.Types (unauthorized401, badRequest400)
-import Network.HTTP.Conduit
+import qualified Network.HTTP.Conduit as C
 import Network.HTTP.Simple (httpLBS, getResponseBody)
 import Web.Cookie
 import Web.Scotty (ScottyM, scottyApp, get, text, param,
@@ -30,14 +29,16 @@ app env = do
 
     get "/oauth/hh" $ do
         code <- param "code"
-        let Env {..} = env
-        let request = urlEncodedBody
+        let Env { envClientId = clientId
+                , envClientSecret = clientSecret
+                } = env
+        let request = C.urlEncodedBody
                     [ ("grant_type", "authorization_code")
                     , ("client_id", fromText clientId)
                     , ("client_secret", fromText clientSecret)
                     , ("code", BS8.pack code)
                     ]
-                    $ parseRequest_ "POST https://hh.ru/oauth/token"
+                    $ C.parseRequest_ "POST https://hh.ru/oauth/token"
         response <- httpLBS request
         case decode . getResponseBody $ response of
             Just (HHSuccess t) -> do
@@ -56,7 +57,9 @@ app env = do
 
 main :: IO ()
 main = do
-    Options {..} <- getOptions
+    Options { optionPort = port
+            , optionDontCache = dontCache
+            } <- getOptions
     getEnv >>= \case
         Just env -> do
             application <- scottyApp $ app env

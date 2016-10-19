@@ -8,14 +8,14 @@ import Turtle
 
 data Options =
     Options
-    { port :: Int
-    , dontCache :: Bool
+    { optionPort :: Int
+    , optionDontCache :: Bool
     }
 
 data Env =
     Env
-    { clientId :: Text
-    , clientSecret :: Text
+    { envClientId :: Text
+    , envClientSecret :: Text
     }
 
 getOptions :: IO Options
