@@ -1,10 +1,12 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Jsons where
 
 import Data.Aeson
 import Data.Text
 import GHC.Generics
 import Control.Applicative ((<|>))
+import Control.Monad (mzero)
 
 data AccessToken = AccessToken { access_token :: Text
                                , token_type :: Text
@@ -35,14 +37,29 @@ instance FromJSON HHResult where
         <|>
         HHError <$> parseJSON x
 
-data User = User { id :: Int
-                 , last_name :: Text
+data User = User { id :: Text
                  , first_name :: Text
                  , middle_name :: Text
-                 , resumes_url :: Text
-                 } deriving (Generic, Show)
+                 , last_name :: Text
+                 } deriving Show
                  
 instance ToJSON User where
-    toEncoding = genericToEncoding defaultOptions
+    toJSON (User _id _first_name _middle_name _last_name) = object ["id" .= _id
+                                                                   ,"first_name" .= _first_name
+                                                                   ,"middle_name" .= _middle_name
+                                                                   ,"last_name" .= _last_name
+                                                                   ]
+    toEncoding (User _id _first_name _middle_name _last_name) =
+        pairs ("id" .= _id
+        --     <>"first_name" .= _first_name
+        --     <>"middle_name" .= _middle_name
+        --     <>"last_name" .: _last_name
+              )
     
-instance FromJSON User where { }
+instance FromJSON User where
+    parseJSON (Object value) = User <$>
+                               value .: "id" <*>
+                               value .: "first_name" <*>
+                               value .: "middle_name" <*>
+                               value .: "last_name"
+    parseJSON _              = mzero

@@ -3,15 +3,18 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Main where
 
+import Control.Monad.Trans (liftIO)
 import Data.Aeson (decode)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TE
 import qualified Data.ByteString.Char8 as BS8
+import qualified Data.ByteString.Lazy.Char8 as BSL
 import qualified Blaze.ByteString.Builder as B
 import Network.Wai.Handler.Warp (run)
 import Network.Wai.Middleware.RequestLogger (logStdout)
-import Network.HTTP.Types (ok200, unauthorized401, badRequest400, hAuthorization)
+import Network.HTTP.Types (ok200, unauthorized401, badRequest400,
+                           hAuthorization, hUserAgent)
 import qualified Network.HTTP.Conduit as C
 import Network.HTTP.Simple (httpLBS, getResponseBody, setRequestHeaders)
 import Web.Cookie
@@ -32,12 +35,16 @@ app env = do
         accessToken <- getCookie "access_token"
         case accessToken of
             Just accessToken' -> do
-                let request = setRequestHeaders [(hAuthorization, BS8.pack ("Bearer " ++ (T.unpack accessToken')))] $ C.parseRequest_ "GET https://api.hh.ru/me"
+                let request = setRequestHeaders [ (hAuthorization, BS8.pack ("Bearer " ++ (T.unpack accessToken')))
+                                                , (hUserAgent, BS8.pack "AngryHeads/1.0 (https://github.com/progmsk/angry-heads)")
+                                                ]
+                                                $ C.parseRequest_ "GET https://api.hh.ru/me"
                 response <- httpLBS request
+                liftIO . BSL.putStrLn $ getResponseBody response
                 case decode . getResponseBody $ response of
                     Just user -> do
                         status ok200
-                        text (TL.pack . T.unpack $ Jsons.first_name user)
+                        text (TL.pack . T.unpack $ Jsons.id user)
                     Nothing   -> do
                         status ok200
                         text "null"
