@@ -11,12 +11,13 @@ import qualified Data.ByteString.Char8 as BS8
 import qualified Blaze.ByteString.Builder as B
 import Network.Wai.Handler.Warp (run)
 import Network.Wai.Middleware.RequestLogger (logStdout)
-import Network.HTTP.Types (unauthorized401, badRequest400)
+import Network.HTTP.Types (ok200, unauthorized401, badRequest400, hAuthorization)
 import qualified Network.HTTP.Conduit as C
-import Network.HTTP.Simple (httpLBS, getResponseBody)
+import Network.HTTP.Simple (httpLBS, getResponseBody, setRequestHeaders)
 import Web.Cookie
 import Web.Scotty (ScottyM, scottyApp, get, text, param,
                    setHeader, redirect, ActionM, status)
+import Web.Scotty.Cookie
 
 import Options
 import Static
@@ -25,7 +26,24 @@ import qualified Jsons
 
 app :: Env -> ScottyM ()
 app env = do
-    get "/hello" $ text "Hello, world!"
+    get "/api/v1/hello" $ text "{ \"message\": \"Hello, world!\" }"
+    
+    get "/api/v1/users/current" $ do
+        accessToken <- getCookie "access_token"
+        case accessToken of
+            Just accessToken' -> do
+                let request = setRequestHeaders [(hAuthorization, BS8.pack ("Bearer " ++ (T.unpack accessToken')))] $ C.parseRequest_ "GET https://api.hh.ru/me"
+                response <- httpLBS request
+                case decode . getResponseBody $ response of
+                    Just user -> do
+                        status ok200
+                        text (TL.pack . T.unpack $ Jsons.first_name user)
+                    Nothing   -> do
+                        status ok200
+                        text "null"
+            Nothing -> do
+                status unauthorized401
+                text "null"
 
     get "/oauth/hh" $ do
         code <- param "code"
@@ -42,7 +60,7 @@ app env = do
         response <- httpLBS request
         case decode . getResponseBody $ response of
             Just (HHSuccess t) -> do
-                setCookie . accessTokenCookie $ Jsons.access_token t
+                Main.setCookie . accessTokenCookie $ Jsons.access_token t
                 redirect "/"
             Just (HHError e) -> do
                 status unauthorized401

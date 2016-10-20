@@ -34,3 +34,15 @@ instance FromJSON HHResult where
         HHSuccess <$> parseJSON x
         <|>
         HHError <$> parseJSON x
+
+data User = User { id :: Int
+                 , last_name :: Text
+                 , first_name :: Text
+                 , middle_name :: Text
+                 , resumes_url :: Text
+                 } deriving (Generic, Show)
+                 
+instance ToJSON User where
+    toEncoding = genericToEncoding defaultOptions
+    
+instance FromJSON User where { }
