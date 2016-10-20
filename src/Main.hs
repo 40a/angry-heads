@@ -1,64 +1,90 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module Main where
 
+import Control.Monad.Trans (liftIO)
 import Data.Aeson (decode)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TE
-import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
+import qualified Data.ByteString.Lazy.Char8 as BSL
 import qualified Blaze.ByteString.Builder as B
 import Network.Wai.Handler.Warp (run)
 import Network.Wai.Middleware.RequestLogger (logStdout)
-import Network.HTTP.Conduit
-import Network.HTTP.Simple (httpLBS, getResponseBody)
+import Network.HTTP.Types (ok200, unauthorized401, badRequest400,
+                           hAuthorization, hUserAgent)
+import qualified Network.HTTP.Conduit as C
+import Network.HTTP.Simple (httpLBS, getResponseBody, setRequestHeaders)
 import Web.Cookie
-import Web.Scotty (ScottyM, scottyApp, get, text, param, setHeader, redirect, ActionM)
+import Web.Scotty (ScottyM, scottyApp, get, text, param,
+                   setHeader, redirect, ActionM, status)
+import Web.Scotty.Cookie
 
 import Options
 import Static
-import Jsons (access_token, error, error_description)
-
-makeCookie :: BS.ByteString -> BS.ByteString -> SetCookie
-makeCookie n v = def { setCookieName = n, setCookieValue = v }
-
-renderSetCookie' :: SetCookie -> TL.Text
-renderSetCookie' = TE.decodeUtf8 . B.toLazyByteString . renderSetCookie
-
-setCookie :: BS.ByteString -> BS.ByteString -> ActionM ()
-setCookie n v = setHeader "Set-Cookie" (renderSetCookie' (makeCookie n v))
+import Jsons (HHResult(..))
+import qualified Jsons
 
 app :: Env -> ScottyM ()
 app env = do
-    get "/hello" $ text "Hello, world!"
+    get "/api/v1/hello" $ text "{ \"message\": \"Hello, world!\" }"
+    
+    get "/api/v1/users/current" $ do
+        accessToken <- getCookie "access_token"
+        case accessToken of
+            Just accessToken' -> do
+                let request = setRequestHeaders [ (hAuthorization, BS8.pack ("Bearer " ++ (T.unpack accessToken')))
+                                                , (hUserAgent, BS8.pack "AngryHeads/1.0 (https://github.com/progmsk/angry-heads)")
+                                                ]
+                                                $ C.parseRequest_ "GET https://api.hh.ru/me"
+                response <- httpLBS request
+                liftIO . BSL.putStrLn $ getResponseBody response
+                case decode . getResponseBody $ response of
+                    Just user -> do
+                        status ok200
+                        text (TL.pack . T.unpack $ Jsons.id user)
+                    Nothing   -> do
+                        status ok200
+                        text "null"
+            Nothing -> do
+                status unauthorized401
+                text "null"
 
     get "/oauth/hh" $ do
         code <- param "code"
-        let Env {..} = env
-        let request = urlEncodedBody
+        let Env { envClientId = clientId
+                , envClientSecret = clientSecret
+                } = env
+        let request = C.urlEncodedBody
                     [ ("grant_type", "authorization_code")
                     , ("client_id", fromText clientId)
                     , ("client_secret", fromText clientSecret)
                     , ("code", BS8.pack code)
                     ]
-                    $ parseRequest_ "POST https://hh.ru/oauth/token"
+                    $ C.parseRequest_ "POST https://hh.ru/oauth/token"
         response <- httpLBS request
-        case (decode . getResponseBody) response of
-          Nothing    -> case (decode . getResponseBody) response of
-                          Nothing    -> text "Нераспознаная ошибка"
-                          Just value -> text . TL.pack $ (show (Jsons.error $ value) ++ " " ++ show (error_description $ value))
-          Just value -> do setCookie (BS8.pack "access_token") (BS8.pack (show (access_token $ value)))
-                           redirect "/"
+        case decode . getResponseBody $ response of
+            Just (HHSuccess t) -> do
+                Main.setCookie . accessTokenCookie $ Jsons.access_token t
+                redirect "/"
+            Just (HHError e) -> do
+                status unauthorized401
+                setHeader "Lazy-Error-Message" .
+                    TL.pack . T.unpack $ Jsons.error e
+            Nothing -> do
+                status badRequest400
+                setHeader "Lazy-Error-Message" "Нераспознанная ошибка"
     where
         fromText = BS8.pack . T.unpack
 
 
 main :: IO ()
 main = do
-    Options {..} <- getOptions
+    Options { optionPort = port
+            , optionDontCache = dontCache
+            } <- getOptions
     getEnv >>= \case
         Just env -> do
             application <- scottyApp $ app env
@@ -73,3 +99,15 @@ main = do
                 $ application
         _ ->
            putStrLn "Environment wasn't configured properly!"
+
+setCookie :: SetCookie -> ActionM ()
+setCookie =
+    setHeader "Set-Cookie" . TE.decodeUtf8 .
+    B.toLazyByteString . renderSetCookie
+
+accessTokenCookie :: T.Text -> SetCookie
+accessTokenCookie value =
+    def { setCookieName = "access_token"
+        , setCookieValue = BS8.pack . T.unpack $ value
+        , setCookiePath = Just "/"
+        }

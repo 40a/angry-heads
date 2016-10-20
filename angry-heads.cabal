@@ -29,9 +29,9 @@ executable server
   other-modules:       Options, Static, Jsons
   build-depends:       base >= 4.7 && < 5,
                        http-types, wai, warp,
-                       wai-extra,
+                       wai-extra, HTTP,
                        wai-middleware-static,
                        scotty, cookie, blaze-builder,
-                       turtle,
+                       scotty-cookie, turtle,
                        http-client, http-conduit, http-client-tls,
                        text, aeson, bytestring, mtl
