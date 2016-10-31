@@ -12,6 +12,17 @@ category:            Web
 build-type:          Simple
 cabal-version:       >=1.10
 
+test-suite server-test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             Spec.hs
+  default-language:    Haskell2010
+  ghc-options:         -Werror -Wall -threaded -rtsopts -with-rtsopts=-N
+  build-depends:       base >= 4.7 && < 5,
+                       hspec,
+                       aeson, bytestring,
+                       angry-heads
+
 executable build-it
   hs-source-dirs:      scripts
   main-is:             BuildIt.hs
@@ -22,16 +33,27 @@ executable build-it
                        fsnotify
 
 executable server
-  hs-source-dirs:      src
+  hs-source-dirs:      app
   main-is:             Main.hs
   default-language:    Haskell2010
   ghc-options:         -Werror -Wall
-  other-modules:       Options, Static, Jsons
+  build-depends:       base >= 4.7 && < 5,
+                       warp, wai, wai-extra, scotty,
+                       angry-heads
+
+library
+  hs-source-dirs:      src
+  exposed-modules:     AngryHeads
+                     , Options
+                     , Static
+                     , Jsons
+                     , Network.HeadHunter.Types
+  default-language:    Haskell2010
+  ghc-options:         -Werror -Wall
   build-depends:       base >= 4.7 && < 5,
                        http-types, wai, warp,
-                       wai-extra, HTTP,
                        wai-middleware-static,
                        scotty, cookie, blaze-builder,
                        scotty-cookie, turtle,
                        http-client, http-conduit, http-client-tls,
-                       text, aeson, bytestring, mtl
+                       text, aeson, bytestring, mtl, vector

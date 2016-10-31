@@ -1,8 +1,7 @@
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Main where
+module AngryHeads where
 
 import qualified Blaze.ByteString.Builder as B
 import Control.Monad.Trans (liftIO)
@@ -17,18 +16,14 @@ import Network.HTTP.Simple
        (httpLBS, getResponseBody, setRequestHeaders)
 import Network.HTTP.Types
        (ok200, unauthorized401, badRequest400, hAuthorization, hUserAgent)
-import Network.Wai.Handler.Warp (run)
-import Network.Wai.Middleware.RequestLogger (logStdout)
 import Web.Cookie
 import Web.Scotty
-       (ScottyM, scottyApp, get, text, param, setHeader, redirect,
-        ActionM, status)
-import Web.Scotty.Cookie
+       (ScottyM, get, text, param, setHeader, redirect, ActionM, status)
+import Web.Scotty.Cookie hiding (setCookie)
 
 import Jsons (HHResult(..), user_id, items, experience, name)
 import qualified Jsons
 import Options
-import Static
 
 app :: Env -> ScottyM ()
 app env = do
@@ -39,8 +34,8 @@ app env = do
             Just accessToken' -> do
                 let request =
                         setRequestHeaders
-                            [ ( hAuthorization, makeAuthorization accessToken')
-                            , ( hUserAgent, userAgent)
+                            [ (hAuthorization, makeAuthorization accessToken')
+                            , (hUserAgent, userAgent)
                             ] $
                         C.parseRequest_ "GET https://api.hh.ru/me"
                 response <- httpLBS request
@@ -61,8 +56,8 @@ app env = do
             Just accessToken' -> do
                 let request =
                         setRequestHeaders
-                            [ ( hAuthorization, makeAuthorization accessToken')
-                            , ( hUserAgent, userAgent)
+                            [ (hAuthorization, makeAuthorization accessToken')
+                            , (hUserAgent, userAgent)
                             ] $
                         C.parseRequest_ "GET https://api.hh.ru/resumes/mine"
                 response <- httpLBS request
@@ -93,7 +88,7 @@ app env = do
         response <- httpLBS request
         case decode . getResponseBody $ response of
             Just (HHSuccess t) -> do
-                Main.setCookie . accessTokenCookie $ Jsons.access_token t
+                setCookie . accessTokenCookie $ Jsons.access_token t
                 redirect "/"
             Just (HHError e) -> do
                 status unauthorized401
@@ -104,20 +99,9 @@ app env = do
                 setHeader "Lazy-Error-Message" "Нераспознанная ошибка"
   where
     fromText = BS8.pack . T.unpack
-    userAgent = BS8.pack "AngryHeads/1.0 (https://github.com/progmsk/angry-heads)"
+    userAgent =
+        BS8.pack "AngryHeads/1.0 (https://github.com/progmsk/angry-heads)"
     makeAuthorization token = BS8.pack $ "Bearer " ++ T.unpack token
-
-main :: IO ()
-main = do
-    Options {optionPort = port, optionDontCache = dontCache} <- getOptions
-    getEnv >>= \case
-        Just env -> do
-            application <- scottyApp $ app env
-            withStatic <- makeWithStatic dontCache
-            putStrLn $
-                "Server started! (port: " ++ show port ++ ", Ctrl+C to stop)"
-            run port . logStdout . withStatic $ application
-        _ -> putStrLn "Environment wasn't configured properly!"
 
 setCookie :: SetCookie -> ActionM ()
 setCookie =
