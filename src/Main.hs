@@ -25,7 +25,7 @@ import Web.Scotty
         ActionM, status)
 import Web.Scotty.Cookie
 
-import Jsons (HHResult(..))
+import Jsons (HHResult(..), user_id, items, experience, name)
 import qualified Jsons
 import Options
 import Static
@@ -39,11 +39,8 @@ app env = do
             Just accessToken' -> do
                 let request =
                         setRequestHeaders
-                            [ ( hAuthorization
-                              , BS8.pack $ "Bearer " ++ T.unpack accessToken')
-                            , ( hUserAgent
-                              , BS8.pack
-                                    "AngryHeads/1.0 (https://github.com/progmsk/angry-heads)")
+                            [ ( hAuthorization, makeAuthorization accessToken')
+                            , ( hUserAgent, userAgent)
                             ] $
                         C.parseRequest_ "GET https://api.hh.ru/me"
                 response <- httpLBS request
@@ -51,7 +48,31 @@ app env = do
                 case decode . getResponseBody $ response of
                     Just user -> do
                         status ok200
-                        text (TL.pack . T.unpack $ Jsons.id user)
+                        text (TL.pack . T.unpack $ user_id user)
+                    Nothing -> do
+                        status ok200
+                        text "null"
+            Nothing -> do
+                status unauthorized401
+                text "null"
+    get "/api/v1/users/current/companies" $ do
+        accessToken <- getCookie "access_token"
+        case accessToken of
+            Just accessToken' -> do
+                let request =
+                        setRequestHeaders
+                            [ ( hAuthorization, makeAuthorization accessToken')
+                            , ( hUserAgent, userAgent)
+                            ] $
+                        C.parseRequest_ "GET https://api.hh.ru/resumes/mine"
+                response <- httpLBS request
+                liftIO . BSL.putStrLn $ getResponseBody response
+                case decode . getResponseBody $ response of
+                    Just allResumes -> do
+                        let firstResume = head (items allResumes)
+                        let firstCompany = head (experience firstResume)
+                        status ok200
+                        text (TL.pack . T.unpack $ name firstCompany)
                     Nothing -> do
                         status ok200
                         text "null"
@@ -83,6 +104,8 @@ app env = do
                 setHeader "Lazy-Error-Message" "Нераспознанная ошибка"
   where
     fromText = BS8.pack . T.unpack
+    userAgent = BS8.pack "AngryHeads/1.0 (https://github.com/progmsk/angry-heads)"
+    makeAuthorization token = BS8.pack $ "Bearer " ++ T.unpack token
 
 main :: IO ()
 main = do
