@@ -71,16 +71,6 @@ data Company = Company
     , url :: Text
     } deriving (Show)
 
-instance ToJSON Company where
-    toJSON (Company _company_id _name _url) =
-        object
-            [ "company_id" .= _company_id
-            , "company" .= _name
-            , "company_url" .= _url
-            ]
-    toEncoding (Company _company_id _name _url) =
-        pairs ("company_id" .= _company_id <> "company" .= _name <> "company_url" .= _url)
-
 instance FromJSON Company where
     parseJSON (Object value) =
         Company <$> value .: "company_id" <*> value .: "company" <*>
