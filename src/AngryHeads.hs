@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -21,7 +22,8 @@ import Web.Scotty
        (ScottyM, get, text, param, setHeader, redirect, ActionM, status)
 import Web.Scotty.Cookie hiding (setCookie)
 
-import Network.HeadHunter.Types (AuthResult(..))
+import Network.HeadHunter.Types
+       (AuthResult(..), Resumes(..), Resume(..), Company(..))
 import qualified Network.HeadHunter.Types as HH
 import Options
 
@@ -32,11 +34,13 @@ app env = do
         status ok200
         text . TL.fromStrict $ HH.userId user
     get "/api/v1/users/current/companies" .
-        delegateTo "https://api.hh.ru/resumes/mine" $ \resumes ->
-        let firstResume = head $ HH.resumes resumes
-            firstCompany = head $ HH.resumeExperience firstResume
-        in do status ok200
-              text . TL.fromStrict $ HH.companyName firstCompany
+        delegateTo "https://api.hh.ru/resumes/mine" $ \case
+        (Resumes (Resume (Company _ name _:_):_)) -> do
+            status ok200
+            text . TL.fromStrict $ name
+        _ -> do
+            status ok200
+            text "<none>"
     get "/oauth/hh" $ do
         code <- param "code"
         let Env {envClientId = clientId, envClientSecret = clientSecret} = env
