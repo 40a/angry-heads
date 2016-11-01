@@ -46,13 +46,13 @@ newtype Resumes = Resumes
     } deriving (Show, Eq)
 
 data Resume = Resume
-    { resumeExperience :: [Company]
+    { resumeExperience :: ![Company]
     } deriving (Show, Eq)
 
 data Company = Company
-    { companyId :: Maybe Text
-    , companyName :: Text
-    , companyUrl :: Text
+    { companyId :: !(Maybe Text)
+    , companyName :: !Text
+    , companyUrl :: !Text
     } deriving (Show, Eq)
 
 instance FromJSON Resumes where
