@@ -46,7 +46,6 @@ library
   exposed-modules:     AngryHeads
                      , Options
                      , Static
-                     , Jsons
                      , Network.HeadHunter.Types
   default-language:    Haskell2010
   ghc-options:         -Werror -Wall

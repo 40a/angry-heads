@@ -21,8 +21,8 @@ import Web.Scotty
        (ScottyM, get, text, param, setHeader, redirect, ActionM, status)
 import Web.Scotty.Cookie hiding (setCookie)
 
-import Jsons (HHResult(..), user_id, items, experience, name)
-import qualified Jsons
+import Network.HeadHunter.Types (AuthResult(..))
+import qualified Network.HeadHunter.Types as HH
 import Options
 
 app :: Env -> ScottyM ()
@@ -43,7 +43,7 @@ app env = do
                 case decode . getResponseBody $ response of
                     Just user -> do
                         status ok200
-                        text (TL.pack . T.unpack $ user_id user)
+                        text (TL.pack . T.unpack $ HH.userId user)
                     Nothing -> do
                         status ok200
                         text "null"
@@ -64,10 +64,11 @@ app env = do
                 liftIO . BSL.putStrLn $ getResponseBody response
                 case decode . getResponseBody $ response of
                     Just allResumes -> do
-                        let firstResume = head (items allResumes)
-                        let firstCompany = head (experience firstResume)
+                        let firstResume = head $ HH.resumes allResumes
+                        let firstCompany =
+                                head $ HH.resumeExperience firstResume
                         status ok200
-                        text (TL.pack . T.unpack $ name firstCompany)
+                        text . TL.pack . T.unpack $ HH.companyName firstCompany
                     Nothing -> do
                         status ok200
                         text "null"
@@ -87,13 +88,13 @@ app env = do
                 C.parseRequest_ "POST https://hh.ru/oauth/token"
         response <- httpLBS request
         case decode . getResponseBody $ response of
-            Just (HHSuccess t) -> do
-                setCookie . accessTokenCookie $ Jsons.access_token t
+            Just (AuthSuccess t) -> do
+                setCookie . accessTokenCookie $ HH.authAccessToken t
                 redirect "/"
-            Just (HHError e) -> do
+            Just (AuthFailure e) -> do
                 status unauthorized401
                 setHeader "Lazy-Error-Message" . TL.pack . T.unpack $
-                    Jsons.error e
+                    HH.authError e
             Nothing -> do
                 status badRequest400
                 setHeader "Lazy-Error-Message" "Нераспознанная ошибка"
