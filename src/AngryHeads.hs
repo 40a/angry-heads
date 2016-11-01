@@ -5,7 +5,7 @@ module AngryHeads where
 
 import qualified Blaze.ByteString.Builder as B
 import Control.Monad.Trans (liftIO)
-import Data.Aeson (decode)
+import Data.Aeson (FromJSON, decode)
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy.Char8 as BSL
 import qualified Data.Text as T
@@ -28,53 +28,15 @@ import Options
 app :: Env -> ScottyM ()
 app env = do
     get "/api/v1/hello" $ text "{ \"message\": \"Hello, world!\" }"
-    get "/api/v1/users/current" $ do
-        accessToken <- getCookie "access_token"
-        case accessToken of
-            Just accessToken' -> do
-                let request =
-                        setRequestHeaders
-                            [ (hAuthorization, makeAuthorization accessToken')
-                            , (hUserAgent, userAgent)
-                            ] $
-                        C.parseRequest_ "GET https://api.hh.ru/me"
-                response <- httpLBS request
-                liftIO . BSL.putStrLn $ getResponseBody response
-                case decode . getResponseBody $ response of
-                    Just user -> do
-                        status ok200
-                        text (TL.pack . T.unpack $ HH.userId user)
-                    Nothing -> do
-                        status ok200
-                        text "null"
-            Nothing -> do
-                status unauthorized401
-                text "null"
-    get "/api/v1/users/current/companies" $ do
-        accessToken <- getCookie "access_token"
-        case accessToken of
-            Just accessToken' -> do
-                let request =
-                        setRequestHeaders
-                            [ (hAuthorization, makeAuthorization accessToken')
-                            , (hUserAgent, userAgent)
-                            ] $
-                        C.parseRequest_ "GET https://api.hh.ru/resumes/mine"
-                response <- httpLBS request
-                liftIO . BSL.putStrLn $ getResponseBody response
-                case decode . getResponseBody $ response of
-                    Just allResumes -> do
-                        let firstResume = head $ HH.resumes allResumes
-                        let firstCompany =
-                                head $ HH.resumeExperience firstResume
-                        status ok200
-                        text . TL.pack . T.unpack $ HH.companyName firstCompany
-                    Nothing -> do
-                        status ok200
-                        text "null"
-            Nothing -> do
-                status unauthorized401
-                text "null"
+    get "/api/v1/users/current" . delegateTo "https://api.hh.ru/me" $ \user -> do
+        status ok200
+        text . TL.fromStrict $ HH.userId user
+    get "/api/v1/users/current/companies" .
+        delegateTo "https://api.hh.ru/resumes/mine" $ \resumes ->
+        let firstResume = head $ HH.resumes resumes
+            firstCompany = head $ HH.resumeExperience firstResume
+        in do status ok200
+              text . TL.fromStrict $ HH.companyName firstCompany
     get "/oauth/hh" $ do
         code <- param "code"
         let Env {envClientId = clientId, envClientSecret = clientSecret} = env
@@ -100,9 +62,6 @@ app env = do
                 setHeader "Lazy-Error-Message" "Нераспознанная ошибка"
   where
     fromText = BS8.pack . T.unpack
-    userAgent =
-        BS8.pack "AngryHeads/1.0 (https://github.com/progmsk/angry-heads)"
-    makeAuthorization token = BS8.pack $ "Bearer " ++ T.unpack token
 
 setCookie :: SetCookie -> ActionM ()
 setCookie =
@@ -116,3 +75,32 @@ accessTokenCookie value =
     , setCookieValue = BS8.pack . T.unpack $ value
     , setCookiePath = Just "/"
     }
+
+withToken :: (T.Text -> ActionM ()) -> ActionM ()
+withToken next = getCookie "access_token" >>= maybe respondFailure next
+  where
+    respondFailure = status unauthorized401 >> text "null"
+
+userAgent :: BS8.ByteString
+userAgent = "AngryHeads/1.0 (https://github.com/progmsk/angry-heads)"
+
+delegateTo
+    :: FromJSON a
+    => String -> (a -> ActionM ()) -> ActionM ()
+delegateTo url next =
+    withToken $ \token -> do
+        let request =
+                setRequestHeaders
+                    [ (hAuthorization, makeAuthorization token)
+                    , (hUserAgent, userAgent)
+                    ] $
+                C.parseRequest_ $ "GET " ++ url
+        response <- httpLBS request
+        liftIO . BSL.putStrLn $ getResponseBody response
+        case decode . getResponseBody $ response of
+            Just res -> next res
+            Nothing -> do
+                status ok200
+                text "null"
+  where
+    makeAuthorization token = BS8.pack $ "Bearer " ++ T.unpack token
