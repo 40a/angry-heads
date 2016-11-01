@@ -6,9 +6,10 @@ module AngryHeads where
 
 import qualified Blaze.ByteString.Builder as B
 import Control.Monad.Trans (liftIO)
-import Data.Aeson (FromJSON, decode)
+import Data.Aeson (FromJSON, decode, eitherDecode')
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy.Char8 as BSL
+import Data.List (nub)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TE
@@ -19,11 +20,12 @@ import Network.HTTP.Types
        (ok200, unauthorized401, badRequest400, hAuthorization, hUserAgent)
 import Web.Cookie
 import Web.Scotty
-       (ScottyM, get, text, param, setHeader, redirect, ActionM, status)
+       (ScottyM, get, text, param, setHeader, redirect, ActionM, status, json)
 import Web.Scotty.Cookie hiding (setCookie)
 
 import Network.HeadHunter.Types
-       (AuthResult(..), Resumes(..), Resume(..), Company(..))
+       (AuthResult(..), Resume(..),
+        User(..), CollectionResponse(..))
 import qualified Network.HeadHunter.Types as HH
 import Options
 
@@ -32,15 +34,12 @@ app env = do
     get "/api/v1/hello" $ text "{ \"message\": \"Hello, world!\" }"
     get "/api/v1/users/current" . delegateTo "https://api.hh.ru/me" $ \user -> do
         status ok200
-        text . TL.fromStrict $ HH.userId user
-    get "/api/v1/users/current/companies" .
-        delegateTo "https://api.hh.ru/resumes/mine" $ \case
-        (Resumes (Resume (Company _ name _:_):_)) -> do
+        json (user :: User)
+    get "/api/v1/users/current/companies" . delegateTo "https://api.hh.ru/resumes/mine" $
+        \rs -> do
+            let companies = nub . concatMap resumeExperience . HH.resumes $ rs
             status ok200
-            text . TL.fromStrict $ name
-        _ -> do
-            status ok200
-            text "<none>"
+            json . CollectionResponse $ companies
     get "/oauth/hh" $ do
         code <- param "code"
         let Env {envClientId = clientId, envClientSecret = clientSecret} = env
@@ -101,10 +100,16 @@ delegateTo url next =
                 C.parseRequest_ $ "GET " ++ url
         response <- httpLBS request
         liftIO . BSL.putStrLn $ getResponseBody response
-        case decode . getResponseBody $ response of
-            Just res -> next res
-            Nothing -> do
+        case eitherDecode' . getResponseBody $ response of
+            Right res -> next res
+            Left err -> do
+                liftIO . putStrLn $ err
                 status ok200
                 text "null"
+--        case decode . getResponseBody $ response of
+--            Just res -> next res
+--            Nothing -> do
+--                status ok200
+--                text "null"
   where
     makeAuthorization token = BS8.pack $ "Bearer " ++ T.unpack token

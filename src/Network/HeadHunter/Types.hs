@@ -8,12 +8,14 @@ module Network.HeadHunter.Types
     , Resumes(..)
     , Resume(..)
     , Company(..)
+    , CollectionResponse(..)
     ) where
 
 import Control.Applicative ((<|>))
 import Control.Monad (mzero)
 import Data.Aeson
-       (Value(Object), FromJSON(..), withArray, (.:), (.:?))
+       (Value(Object), FromJSON(..), withArray, (.:), (.:?),
+        (.=), ToJSON(..), object)
 import Data.Aeson.Types (Parser)
 import Data.Text (Text)
 import qualified Data.Vector as V
@@ -49,10 +51,13 @@ data Resume = Resume
     { resumeExperience :: [Company]
     } deriving (Show, Eq)
 
+newtype CollectionResponse a =
+    CollectionResponse a
+
 data Company = Company
     { companyId :: Maybe Text
     , companyName :: Text
-    , companyUrl :: Text
+    , companyUrl :: Maybe Text
     } deriving (Show, Eq)
 
 instance FromJSON Resumes where
@@ -66,8 +71,16 @@ instance FromJSON Resume where
 
 instance FromJSON Company where
     parseJSON (Object o) =
-        Company <$> o .:? "company_id" <*> o .: "company" <*> o .: "company_url"
+        Company <$> o .:? "company_id" <*> o .: "company" <*> o .:? "company_url"
     parseJSON _ = mzero
+
+instance ToJSON Company where
+    toJSON (Company _companyId _company _companyUrl) =
+        object ["company_id" .= _companyId, "company" .= _company, "company_url" .= _companyUrl]
+
+instance ToJSON a =>
+         ToJSON (CollectionResponse a) where
+    toJSON (CollectionResponse x) = object ["items" .= toJSON x]
 
 instance FromJSON AuthToken where
     parseJSON (Object o) =
@@ -90,6 +103,11 @@ instance FromJSON User where
         value .: "middle_name" <*>
         value .: "last_name"
     parseJSON _ = mzero
+
+instance ToJSON User where
+    toJSON (User _userId _userFirstName _userMiddleName _userLastName) =
+        object ["id" .= _userId, "first_name" .= _userFirstName, "middle_name" .= _userMiddleName,
+                "last_name" .= _userLastName]
 
 asArrayOf
     :: FromJSON a

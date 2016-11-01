@@ -16,6 +16,7 @@ test-suite server-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   main-is:             Spec.hs
+  other-modules:       HeadHunterSpec
   default-language:    Haskell2010
   ghc-options:         -Werror -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base >= 4.7 && < 5,
