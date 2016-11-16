@@ -48,19 +48,25 @@ nav m =
             ]
 
 
-page : Model -> Html a
+page : Model -> Html Msg
 page m =
     container
         [ h1 [] [ text m.message ]
-        , a
-            [ href "https://hh.ru/oauth/authorize?response_type=code&client_id=UA6JURGKSH4MMV6H2VQ2SQ3NJUGOAQ136SPL8J5R9V2LDJR7UIAUJN65F73CIFJ8"
-            , title "Аутентификация через Head Hunter"
-            ]
-            [ img [ src "/img/hh-black.png" ]
-                []
-            ]
+        , authenticationLink m.user
         ]
 
+authenticationLink : Maybe User -> Html Msg
+authenticationLink maybeUser =
+--    a [ href "https://hh.ru/oauth/authorize?response_type=code&client_id=UA6JURGKSH4MMV6H2VQ2SQ3NJUGOAQ136SPL8J5R9V2LDJR7UIAUJN65F73CIFJ8"
+--      , title "Аутентификация через Head Hunter"
+--      ]
+--      [ img [ src "/img/hh-black.png" ] [] ]
+    case maybeUser of
+        Just user -> text (user.firstName ++ " " ++ user.middleName ++ " " ++ user.lastName)
+        Nothing -> a [ href "https://hh.ru/oauth/authorize?response_type=code&client_id=UA6JURGKSH4MMV6H2VQ2SQ3NJUGOAQ136SPL8J5R9V2LDJR7UIAUJN65F73CIFJ8"
+                     , title "Аутентификация через Head Hunter"
+                     ]
+                     [ img [ src "/img/hh-black.png" ] [] ]
 
 infixr 9 <:
 (<:) : (List a -> b) -> a -> b
